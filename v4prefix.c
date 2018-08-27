@@ -67,7 +67,7 @@ struct v4prefix *make_v4prefix(char *input){
     i = 0;
     while(*walk != '.' && *walk != '/' && *walk != 0){
       buf[i] = *walk;
-      fprintf(stderr, "buf[%u]: %c\n", i, buf[i]);
+      fprintf(stderr, "buf[%u]: %c\t", i, buf[i]);
       walk++;
       i++;
     }
@@ -138,7 +138,26 @@ uint32_t get_usable_ip(struct v4prefix *prefix){
   return 33 - len;
 }
 
-void to_string(struct v4prefix *prefix){
+void print_cidr(struct v4prefix *prefix, uint32_t flags){
+  uint8_t *p = (uint8_t *)&prefix->network;
+  /*
+   * bit 0: show prefix
+   * bit 1: append comma
+   * bit 2: free memory
+   */
+  printf("%u.%u.%u.%u", p[3], p[2], p[1], p[0]);
+  if(flags & 1){
+    printf("/%u", prefix->length);
+  }
+  if(flags & 2){
+    printf(",");
+  }
+  if(flags & 4){
+    free_v4prefix(prefix);
+  }
+}
+
+void print_all(struct v4prefix *prefix){
   uint8_t p[4], n[4], b[4];
   struct v4prefix *net = get_network(prefix);
   struct v4prefix *bcast = get_broadcast(prefix);
@@ -147,11 +166,9 @@ void to_string(struct v4prefix *prefix){
     n[i] = get_octet(net, i+1);
     b[i] = get_octet(bcast, i+1);
   }
-  printf("%d.%d.%d.%d/%d", p[0], p[1], p[2], p[3], prefix->length);
-  printf(",net: %d.%d.%d.%d", n[0], n[1], n[2], n[3]);
-  //printf(",tag: %d", prefix->tag);
-  printf(",bcast: %d.%d.%d.%d", b[0], b[1], b[2], b[3]);
-  printf(",usable: %d\n", get_usable_ip(prefix));
-  free_v4prefix(bcast);
-  free_v4prefix(net);
+  print_cidr(prefix, 3);
+  printf("%c,", prefix->pclass);
+  print_cidr(net, 6);
+  print_cidr(bcast, 6);
+  printf("%u\n", get_usable_ip(prefix));
 }

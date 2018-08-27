@@ -24,4 +24,4 @@ uint8_t get_octet(struct v4prefix *, uint8_t);
 
 struct v4prefix *get_network(struct v4prefix *);
 
-void to_string(struct v4prefix *);
+void print_all(struct v4prefix *);

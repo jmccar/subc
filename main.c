@@ -6,9 +6,9 @@
 int main(int argc, char *argv[]){
   fprintf(stdout, "input,class,net,bcast,usable\n");
   for(uint8_t i = 1; i < argc; i++){
-    fprintf(stderr, "argv[%d]: %s\n", i, argv[i]);
+    fprintf(stderr, "\nargv[%d]: %s\n", i, argv[i]);
     struct v4prefix *p = make_v4prefix(argv[i]);
-    to_string(p);
+    print_all(p);
     free_v4prefix(p);
   }
 /*

@@ -7,8 +7,14 @@ v4prefix.o: v4prefix.c
 main.o: main.c
 	gcc -c main.c
 
+.PHONY: clean
 clean:
 	rm *.o *.exe
 
-make test:
-	./run.exe 203.000.013.255/023 016.032.064.128/008
+.PHONY: deb
+deb:
+	@cat input.txt | xargs ./run.exe
+
+.PHONY: col
+col:
+	@cat input.txt | xargs ./run.exe 2> /dev/null | column -s, -t
