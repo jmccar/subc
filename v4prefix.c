@@ -148,7 +148,7 @@ uint8_t get_octet(struct v4prefix *prefix, uint8_t octet){
    * Bitwise AND to grab only that octet
    * Move it to the right to make it a uint8_t
    */
-  uint32_t mask = 255;
+  uint32_t mask = 0xFF;
   mask = mask << 8 * (4-octet);
   uint32_t data = prefix->network & mask;
   return data >> 8 * (4-octet);
@@ -164,13 +164,21 @@ uint32_t get_usable_ip(struct v4prefix *prefix){
 }
 
 void print_cidr(struct v4prefix *prefix, uint32_t flags){
-  uint8_t *p = (uint8_t *)&prefix->network;
+  // uint8_t *p = (uint8_t *)&prefix->network;
+  // printf("%d.%d.%d.%d/%d", p[3], p[2], p[1], p[0], prefix->length);
+  // code above works but has endian-ness issues
+  uint8_t p[4];
+  for(uint8_t i = 0; i < 4; i++){
+    p[i] = get_octet(prefix, i+1);
+    fprintf(stderr, "get_octet(%u, %u): %u (mem %p)\n",
+      prefix->network, i+1, p[i], &p[i]);
+  } 
+  printf("%u.%u.%u.%u", p[0], p[1], p[2], p[3]);
   /*
    * bit 0: show prefix
    * bit 1: append comma
    * bit 2: free memory
    */
-  printf("%u.%u.%u.%u", p[3], p[2], p[1], p[0]);
   if(flags & 1){
     fprintf(stdout, "/%u", prefix->length);
   }

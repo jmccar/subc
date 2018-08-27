@@ -2,8 +2,15 @@
 #include<stdint.h>
 #include"v4prefix.h"
 
+void endian(){
+  uint16_t endian = 0x1020; // 16 and 32
+  uint8_t *p = (uint8_t *)&endian;
+  fprintf(stderr, "big: %p: %u\n", p, p[0]);
+  fprintf(stderr, "lit: %p: %u\n", p+1, p[1]);
+}
 
 int main(int argc, char *argv[]){
+  endian();
   fprintf(stdout, "input,hex,class,net,bcast,usable\n");
   for(uint8_t i = 1; i < argc; i++){
     fprintf(stderr, "\nargv[%d]: %s\n", i, argv[i]);
