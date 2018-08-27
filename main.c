@@ -1,13 +1,7 @@
 #include<stdio.h>
 #include<stdint.h>
 #include"v4prefix.h"
-
-void endian(){
-  uint16_t endian = 0x1020; // 16 and 32
-  uint8_t *p = (uint8_t *)&endian;
-  fprintf(stderr, "big: %p: %u\n", p, p[0]);
-  fprintf(stderr, "lit: %p: %u\n", p+1, p[1]);
-}
+#include"endian.h"
 
 int main(int argc, char *argv[]){
   endian();

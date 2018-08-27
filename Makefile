@@ -1,5 +1,8 @@
-output: main.o v4prefix.o
+output: main.o v4prefix.o endian.o
 	gcc *.o -o run.exe
+
+endian.o: endian.c
+	gcc -c endian.c
 
 v4prefix.o: v4prefix.c
 	gcc -c v4prefix.c
