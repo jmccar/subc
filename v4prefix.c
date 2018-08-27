@@ -2,22 +2,40 @@
 #include<stdlib.h>
 #include"v4prefix.h"
 
+const uint8_t ASCII_OFFSET = 48;
 long V4P_S = sizeof(struct v4prefix);
+uint32_t v4prefix_cnt = 0;
 
 struct v4prefix *malloc_v4prefix(){
   struct v4prefix *prefix = malloc(V4P_S);
-  fprintf(stderr, "grab %ld bytes at %p (ptr: %p)\n", V4P_S, prefix, &prefix);
+  v4prefix_cnt++;
+  fprintf(stderr, "grab %ld bytes at %p (ptr: %p) cnt: %u\n",
+    V4P_S, prefix, &prefix, v4prefix_cnt);
   return prefix;
 }
 
 void free_v4prefix(struct v4prefix *prefix){
-  fprintf(stderr, "free %ld bytes at %p (ptr: %p)\n", V4P_S, prefix, &prefix);
+  v4prefix_cnt--;
+  fprintf(stderr, "free %ld bytes at %p (ptr: %p) cnt: %u\n",
+    V4P_S, prefix, &prefix, v4prefix_cnt);
+  if(v4prefix_cnt == 0){
+    fprintf(stderr, "all v4prefix structs freed; no memory leak\n");
+  }
   free(prefix);
 }
 
 // ascii 48 -> 0, 57 -> 9
 uint8_t int_from_ascii(char ascii_char){
-  return ascii_char - 48;
+  return ascii_char - ASCII_OFFSET;
+}
+
+uint8_t string_len(char *str){
+  uint8_t len = 0;
+  for(char *i = str; *i != 0; i++){
+    len++;
+  }
+  fprintf(stderr, "string_len(%s): %u\n", str, len);
+  return len;
 }
 
 uint8_t exponent(uint8_t base, uint8_t exp){
@@ -25,63 +43,64 @@ uint8_t exponent(uint8_t base, uint8_t exp){
   for(uint8_t i = 0; i < exp; i++){
     product *= base;
   }
+  fprintf(stderr, "%u^%u: %u\n", base, exp, product);
   return product;
 }
 
 uint8_t int_from_octetstr(char *octetstr){
   uint8_t sum = 0;
-  for(uint8_t i = 0; i < 3; i++){
+  uint8_t len = string_len(octetstr);
+  for(uint8_t i = 0; i < len; i++){
     uint8_t ascii = int_from_ascii(octetstr[i]); 
-    sum += ascii * exponent(10, 2 - i);
+    sum += ascii * exponent(10, len - i - 1);
   }
+  fprintf(stderr, "int_from_octetstr(%s): %u\n", octetstr, sum);
   return sum;
 }
-
 
 void set_tag(struct v4prefix *prefix, uint16_t tag){
   prefix->tag = tag;
 }
 
 prefix_class get_pclass(uint8_t o1){
+  prefix_class c;
   if(o1 < 128){
-    return 'A';
+    c = 'A';
   } else if(o1 >= 128 && o1 < 192){
-    return 'B';
+    c = 'B';
   } else if(o1 >=192 && o1 < 224){
-    return 'C';
+    c = 'C';
   } else if(o1 >= 224 && o1 < 240){
-    return 'D';
+    c = 'D';
   } else {
-    return 'E';
+    c = 'E';
   }
+  fprintf(stderr, "get_pclass(%u): %c\n", o1, c);
+  return c;
 }
 
 struct v4prefix *make_v4prefix(char *input){
-  uint8_t octets[5];
-  uint8_t o_cnt = 0;
-  uint8_t i;
+  uint8_t octets[5]; // 5th octet holds the prefix length
   char *walk = input;
   for(uint8_t o = 0; o < 5; o++){
-    char buf[4];
-    buf[3] = 0;
-    i = 0;
+    char buf[4] = {0, 0, 0, 0}; // initialize array as all-null
+    uint8_t i = 0;
     while(*walk != '.' && *walk != '/' && *walk != 0){
       buf[i] = *walk;
-      fprintf(stderr, "buf[%u]: %c\t", i, buf[i]);
-      walk++;
+      fprintf(stderr, "buf[%u]: %c\n", i, buf[i]);
       i++;
+      walk++;
     }
-    octets[o_cnt] = int_from_octetstr(buf);
-    fprintf(stderr, "octets[%u]: %u\n", o_cnt, octets[o_cnt]);
-    o_cnt++;
+    octets[o] = int_from_octetstr(buf);
+    fprintf(stderr, "octets[%u]: %u\n", o, octets[o]);
     walk++;
   }
 
+  // convert uint8_t[4] to uint32_t
   uint32_t addr = 0;
   for(uint8_t i = 0; i < 4; i++){
     addr += octets[i] * (1 << (24 - (8 * i)));
   }
-
   return make_v4prefix_i(addr, octets[4]);
 }
 
@@ -123,6 +142,12 @@ struct v4prefix *get_broadcast(struct v4prefix *prefix){
 }
 
 uint8_t get_octet(struct v4prefix *prefix, uint8_t octet){
+  /*
+   * Start with eight 1s (11111111) to slide around
+   * Move it to the left to get a specific octet
+   * Bitwise AND to grab only that octet
+   * Move it to the right to make it a uint8_t
+   */
   uint32_t mask = 255;
   mask = mask << 8 * (4-octet);
   uint32_t data = prefix->network & mask;
@@ -147,10 +172,10 @@ void print_cidr(struct v4prefix *prefix, uint32_t flags){
    */
   printf("%u.%u.%u.%u", p[3], p[2], p[1], p[0]);
   if(flags & 1){
-    printf("/%u", prefix->length);
+    fprintf(stdout, "/%u", prefix->length);
   }
   if(flags & 2){
-    printf(",");
+    fprintf(stdout, ",");
   }
   if(flags & 4){
     free_v4prefix(prefix);
@@ -158,17 +183,12 @@ void print_cidr(struct v4prefix *prefix, uint32_t flags){
 }
 
 void print_all(struct v4prefix *prefix){
-  uint8_t p[4], n[4], b[4];
   struct v4prefix *net = get_network(prefix);
   struct v4prefix *bcast = get_broadcast(prefix);
-  for(uint8_t i = 0; i < 4; i++){
-    p[i] = get_octet(prefix, i+1);
-    n[i] = get_octet(net, i+1);
-    b[i] = get_octet(bcast, i+1);
-  }
   print_cidr(prefix, 3);
-  printf("%c,", prefix->pclass);
+  fprintf(stdout, "0x%x,", prefix->network);
+  fprintf(stdout, "%c,", prefix->pclass);
   print_cidr(net, 6);
   print_cidr(bcast, 6);
-  printf("%u\n", get_usable_ip(prefix));
+  fprintf(stdout, "%u\n", get_usable_ip(prefix));
 }
